@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://meherabrusho.github.io/sikder-enterprise/sitemap.xml
