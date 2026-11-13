@@ -39,19 +39,21 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // 3. Contact form tabs & deep-link triggers ([data-open-tab])
-  const tabs = document.querySelectorAll(".tab[data-tab]");
+  // 3. Contact form tabs, ARIA keyboard navigation & deep-link triggers ([data-open-tab])
+  const tabList = Array.from(document.querySelectorAll(".tab[data-tab]"));
   const panels = {
     bid: document.getElementById("panel-bid"),
     owner: document.getElementById("panel-owner"),
     prequal: document.getElementById("panel-prequal"),
   };
 
-  function activateTab(tabKey, docName) {
+  function activateTab(tabKey, docName, moveFocus = false) {
     if (!panels[tabKey]) return;
-    tabs.forEach((t) => {
+    tabList.forEach((t) => {
       const selected = t.dataset.tab === tabKey;
       t.setAttribute("aria-selected", String(selected));
+      t.setAttribute("tabindex", selected ? "0" : "-1");
+      if (selected && moveFocus) t.focus();
     });
     Object.entries(panels).forEach(([key, panel]) => {
       if (panel) panel.hidden = key !== tabKey;
@@ -62,8 +64,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  tabs.forEach((tab) => {
+  tabList.forEach((tab, index) => {
     tab.addEventListener("click", () => activateTab(tab.dataset.tab));
+    tab.addEventListener("keydown", (e) => {
+      let nextIdx = null;
+      if (e.key === "ArrowRight") nextIdx = (index + 1) % tabList.length;
+      else if (e.key === "ArrowLeft") nextIdx = (index - 1 + tabList.length) % tabList.length;
+      else if (e.key === "Home") nextIdx = 0;
+      else if (e.key === "End") nextIdx = tabList.length - 1;
+      if (nextIdx !== null) {
+        e.preventDefault();
+        activateTab(tabList[nextIdx].dataset.tab, undefined, true);
+      }
+    });
   });
 
   document.querySelectorAll("[data-open-tab]").forEach((trigger) => {
@@ -134,9 +147,16 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // 5. Scroll reveal
+  // 5. Progressive scroll reveal (elements stay visible without JS or above the fold)
   const revealEls = document.querySelectorAll(".reveal");
-  if ("IntersectionObserver" in window) {
+  if ("IntersectionObserver" in window && revealEls.length) {
+    const viewThreshold = (window.innerHeight || 900) * 1.1;
+    revealEls.forEach((el) => {
+      if (el.getBoundingClientRect().top <= viewThreshold) {
+        el.classList.add("is-visible");
+      }
+    });
+    document.documentElement.classList.add("js-reveal");
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -146,11 +166,11 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         });
       },
-      { threshold: 0.1 }
+      { threshold: 0.08 }
     );
-    revealEls.forEach((el) => io.observe(el));
-  } else {
-    revealEls.forEach((el) => el.classList.add("is-visible"));
+    revealEls.forEach((el) => {
+      if (!el.classList.contains("is-visible")) io.observe(el);
+    });
   }
 
   // 6. Dynamic footer year
